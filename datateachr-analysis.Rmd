@@ -33,9 +33,9 @@ The first two data sets can simply be loaded natively in R using `apt_buildings`
 ```{r explore, message = FALSE}
 #function to quickly look at all 4 datasets in the same manner
 quick_look <- function(df) {
-  print(glimpse(df))
+  glimpse(df)
   print(class(df))
-  print(paste("Contains NA?", any(is.na(df))))
+  paste("Contains NA?", any(is.na(df)))
 }
 
 #first we will look at the apt_buildings dataset from datateachr
