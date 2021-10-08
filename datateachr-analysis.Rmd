@@ -1,0 +1,58 @@
+---
+title: Mini Data Analysis with datateachr
+author: Eric Liu
+date: October 9, 2021
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'left', echo = TRUE)
+```
+
+## 0.1 Introduction
+
+This is a data exploration into the datasets from the [datateachr](https://github.com/UBC-MDS/datateachr) package. Initially, 4 of the 7 available datasets will be chosen to be further explored and for which a proposed research question will be formulated. We will then choose one data set for an in depth analysis. 
+
+The primary tool for data cleaning and visualization will be *dplyr* and *ggplot* respectively.
+
+## 0.2 Load required libraries
+```{r libraries, message= FALSE}
+library(datateachr)
+library(tidyverse)
+library(readr)
+```
+
+## 1.1 Chosen datasets
+1. apt_buildings
+2. cancer_sample
+3. MSK-IMPACT Clinical Sequencing Cohort, available [here](https://www.cbioportal.org/study/clinicalData?id=msk_impact_2017)
+4. buparlisib and letrozole in ER+ metastatic breast cancer, available [here](https://www.cbioportal.org/study/clinicalData?id=brca_mskcc_2019)
+
+## 1.2 Data overview 
+The first two data sets can simply be loaded natively in R using `apt_buildings` and `cancer_sample` as we have loaded the datateachr package. The last two datasets must be first downloaded and imported using the readr package. 
+```{r explore, message = FALSE}
+#function to quickly look at all 4 datasets in the same manner
+quick_look <- function(df) {
+  print(glimpse(df))
+  print(class(df))
+  print(paste("Contains NA?", any(is.na(df))))
+}
+
+#first we will look at the apt_buildings dataset from datateachr
+apt_buildings <- apt_buildings
+quick_look(apt_buildings)
+
+#repeated for cancer_sample 
+cancer_sample <- cancer_sample
+quick_look(cancer_sample)
+
+#we must first import the last 2 data sets, and again look at their features
+msk <- read_tsv("msk_impact_2017_clinical_data.tsv")
+quick_look(msk)
+metastatic_BC <- read_tsv("brca_mskcc_2019_clinical_data.tsv")
+quick_look(metastatic_BC)
+```
+
+## 1.3 Data exploration 
+We will further explore the 4 datasets and formulate research questions for each.
+
