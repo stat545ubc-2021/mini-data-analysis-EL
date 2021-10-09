@@ -1,5 +1,5 @@
 ---
-title: Mini Data Analysis with datateachr
+title: Mini Data Analysis Project With datateachr
 author: Eric Liu
 date: October 9, 2021
 output: html_document
@@ -9,29 +9,32 @@ output: html_document
 knitr::opts_chunk$set(fig.align = 'left', echo = TRUE)
 ```
 
-## 0.1 Introduction
+# 0.1 Introduction
 
-This is a data exploration into the datasets from the [datateachr](https://github.com/UBC-MDS/datateachr) package. Initially, 4 of the 7 available datasets will be chosen to be further explored and for which a proposed research question will be formulated. We will then choose one data set for an in depth analysis. 
+This is a data exploration into the datasets from the [datateachr](https://github.com/UBC-MDS/datateachr) package as well as external datasets from [cBioPortal](https://www.cbioportal.org). Initially, 4 datasets will be chosen to be further explored. We will then choose a single dataset for which we will formulate research questions to address with an in depth analysis.
 
 The primary tool for data cleaning and visualization will be *dplyr* and *ggplot* respectively.
 
-## 0.2 Load required libraries
+# 0.2 Load required libraries
 ```{r libraries, message= FALSE}
+#packages must first be installed locally before they can be loaded
 library(datateachr)
 library(tidyverse)
 library(readr)
 ```
 
-## 1.1 Chosen datasets
+# 1.1 Choosing datasets
+I have chosen two datasets from datateachr and two external datasets that were of personal interest to me as the starting point for our analysis. 
+
 1. apt_buildings
 2. cancer_sample
 3. MSK-IMPACT Clinical Sequencing Cohort, available [here](https://www.cbioportal.org/study/clinicalData?id=msk_impact_2017)
 4. buparlisib and letrozole in ER+ metastatic breast cancer, available [here](https://www.cbioportal.org/study/clinicalData?id=brca_mskcc_2019)
 
-## 1.2 Data overview 
-The first two data sets can simply be loaded natively in R using `apt_buildings` and `cancer_sample` as we have loaded the datateachr package. The last two datasets must be first downloaded and imported using the readr package. 
+# 1.2 Data overview 
+We will now use basic R and tidyverse functions to gain a better understanding of the data contained within each dataset. The first two datasets can simply be loaded natively in R using `apt_buildings` and `cancer_sample` as we have already loaded the datateachr package. The last two datasets must be first downloaded and then imported using the readr package. Using the `quick_look` function, we will be able to extract the dimensions, name of the variables, and class of the dataset, as well as whether it contains any NA values. 
 ```{r explore, message = FALSE}
-#function to quickly look at all 4 datasets in the same manner
+#function to quickly gain key insights into a dataset
 quick_look <- function(df) {
   glimpse(df)
   print(class(df))
@@ -42,7 +45,7 @@ quick_look <- function(df) {
 apt_buildings <- apt_buildings
 quick_look(apt_buildings)
 
-#repeated for cancer_sample 
+#repeat for cancer_sample 
 cancer_sample <- cancer_sample
 quick_look(cancer_sample)
 
@@ -53,6 +56,68 @@ metastatic_BC <- read_tsv("brca_mskcc_2019_clinical_data.tsv")
 quick_look(metastatic_BC)
 ```
 
-## 1.3 Data exploration 
-We will further explore the 4 datasets and formulate research questions for each.
+# 1.3 Choosing 2 of the 4 datasets
+The above data exploration has provided us with basic but valuable insights into the data contained within each dataset. All datasets followed the "tibble" convention of having columns as variables and rows as individual observation. Data in this form is clean when it does not contain any missing values. 
 
+1. The `apt_buildings` dataset is composed of up to 37 aspects of 3,455 buildings in Toronto. As the data contains NA values, it is not clean and hence why not all 37 aspects will be described for each building.
+
+2. The `cancer_sample` dataset is composed of 32 features of 569 images of cancer samples. As the data does not contain NA values, it is clean. 
+
+3. The `msk` dataset is composed of 26 aspects of 10,945 patient enrollments into the MSK-IMPACT tumour sequencing study. As the data contains NA values, it is not clean.
+
+4. The `metastatic_BC` dataset is composed of 29 aspects of 70 patient enrollments into a clincial trial for the drugs buparlisib and letrozole in estrogen receptor-positive, metastatic breast cancer. As the data contains NA values, it is not clean.
+
+From the insights into the dataset that we extracted, I have chosen the `msk` and `metastatic_BC` datasets as they are the only two containing clinical data of cancer patients. This is an area I am passionate about and I hope to pursue a career as an oncologist or translational scientist in the future. As well, while the `cancer_sample` dataset is also related to the field, it contains data derived from machine learning deconvolution of cancer sample images rather than clinical data of the patients themselves. Hence, the 2 external datasets better reflect my personal interests and were chosen. 
+
+# 1.4 Choosing a single dataset
+Looking at the `msk` dataset, there are several variables that describe a potential outcome of interest, such as `Overall Survival (Months)` or `Metastatic Site`. A potential research question could be "How does `Smoking History` affect the patient's disease course?"
+
+Looking at the `metastatic_BC` dataset, it appears a variable describing an outcome of interest could be `Best Response to Therapy`. Particularly, a potential research question could be "Is the variable `Fraction Genome Altered` predictive of the patient's `Best Response to Therapy`?". 
+
+After having formulated research questions for both the datasets, I have chosen the `msk` dataset as it is a larger cohort of patients and includes various types of cancer. On the other hand, the `metastatic_BC` dataset was gather from a clinical study and thus represents a more homogeneous group of patients. The data was also gathered with the hypothesis of testing the effectiveness of the experimental intervention in mind. Thus, I believe the diversity of the `msk` dataset might lend to a more interesting and open-ended exploration, hence why I chose it for the next section of the project. 
+
+# 2.1 Data exploration 
+I will perform several data analysis exercises to gain a deeper understanding of the data contained. 
+
+**Exercise**
+Filtering of dataset to include only the 4 most common types of cancer.
+``` {r}
+  most_common_cancer_types <- msk %>%
+  group_by(`Cancer Type`) %>%
+  summarize(n()) %>%
+  arrange(desc(`n()`)) %>%
+  head(4) %>%
+  select(`Cancer Type`) %>%
+  as_vector()
+
+msk_most_common <- msk %>% filter(`Cancer Type` %in% most_common_cancer_types)
+```
+
+**Exercise** 
+Plot of the density of `DNA Input`
+
+``` {r}
+msk_most_common %>% ggplot(aes(x = `Mutation Count`)) +
+  geom_density() +
+  scale_x_log10()
+``` 
+
+**Exercise** 
+Plot of the distribution of `Fraction Genome Altered`
+
+``` {r}
+msk_most_common %>% ggplot(aes(x = `Fraction Genome Altered`)) +
+  geom_histogram()
+``` 
+
+**Exercise** 
+Boxplot of `Overall Survival (Months)` across various `Smoking History`. 
+``` {r}
+msk_most_common %>% filter(!is.na(`Smoking History`)) %>% ggplot(aes(x = `Smoking History`, y = `Overall Survival (Months)`)) +
+  geom_boxplot()
+``` 
+
+
+# 2.2 Exploration explained
+
+# 3.1 Research questions
