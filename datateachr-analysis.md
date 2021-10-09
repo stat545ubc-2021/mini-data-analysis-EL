@@ -19,25 +19,29 @@ The primary tool for data cleaning and visualization will be *dplyr* and
 
 # 1.1 Choosing datasets
 
-I have chosen two datasets from datateachr and two external datasets
+I have chosen two datasets from *datateachr* and two external datasets
 that were of personal interest to me as the starting point for our
 analysis.
 
 1.  apt\_buildings
 2.  cancer\_sample
 3.  MSK-IMPACT Clinical Sequencing Cohort, available
-    [here](https://www.cbioportal.org/study/clinicalData?id=msk_impact_2017)
+    [here](https://www.cbioportal.org/study/clinicalData?id=msk_impact_2017).
+    This contains clinical data on patients with cancer, covering 59
+    different types.
 4.  buparlisib and letrozole in ER+ metastatic breast cancer, available
-    [here](https://www.cbioportal.org/study/clinicalData?id=brca_mskcc_2019)
+    [here](https://www.cbioportal.org/study/clinicalData?id=brca_mskcc_2019).
+    This contains clinical data on patients with cancer who were
+    enrolled into a clinical trial for two drugs.
 
 # 1.2 Data overview
 
 We will now use basic R and tidyverse functions to gain a better
 understanding of the data contained within each dataset. The first two
 datasets can simply be loaded natively in R using `apt_buildings` and
-`cancer_sample` as we have already loaded the datateachr package. The
+`cancer_sample` as we have already loaded the *datateachr* package. The
 last two datasets must be first downloaded and then imported using the
-readr package. Using the `quick_look` function, we will be able to
+*readr* package. Using the `quick_look` function, we will be able to
 extract the dimensions, name of the variables, and class of the dataset,
 as well as whether it contains any NA values.
 
@@ -224,11 +228,16 @@ contain any missing values.
 1.  The `apt_buildings` dataset is composed of up to 37 aspects of 3,455
     buildings in Toronto. As the data contains NA values, it is not
     clean and hence why not all 37 aspects will be described for each
-    building.
+    building. It appears to be primarily categorical data, as many of
+    the numeric variables are not continuous, but rather only take on a
+    subset of discrete values (ie. `no_of_elevators` only contains 11
+    distinct values).
 
 2.  The `cancer_sample` dataset is composed of 32 features of 569 images
     of cancer samples. As the data does not contain NA values, it is
-    clean.
+    clean. it is composed of only continuous data, other than
+    `diagnosis` which is categorical and `ID` which uniquely identifies
+    each row.
 
 3.  The `msk` dataset is composed of 26 aspects of 10,945 patient
     enrollments into the MSK-IMPACT tumour sequencing study. As the data
@@ -253,13 +262,13 @@ reflect my personal interests and were chosen.
 
 Looking at the `msk` dataset, there are several variables that describe
 a potential outcome of interest, such as `Overall Survival (Months)` or
-`Metastatic Site`. A potential research question could be “How does
-`Smoking History` affect the patient’s disease course?”
+`Metastatic Site`. A potential research question could be “How is
+`Smoking History` related to the patient’s disease course?”
 
 Looking at the `metastatic_BC` dataset, it appears a variable describing
 an outcome of interest could be `Best Response to Therapy`.
-Particularly, a potential research question could be “Is the variable
-`Fraction Genome Altered` predictive of the patient’s
+Particularly, a potential research question could be “Is the mutational
+and genomic characteristics of a patient’s tumor predictive of their
 `Best Response to Therapy`?”.
 
 After having formulated research questions for both the datasets, I have
@@ -280,7 +289,8 @@ of the data contained.
 **Exercise 1** Filtering of dataset to include only the 4 most common
 types of cancer.
 
-      most_common_cancer_types <- msk %>%
+     #we first summarize the dataset to reflect how many patients there are for each cancer type, before selecting the top 4 and storing them in a vector
+     most_common_cancer_types <- msk %>%
       group_by(`Cancer Type`) %>%
       summarize(n()) %>%
       arrange(desc(`n()`)) %>%
@@ -288,10 +298,12 @@ types of cancer.
       select(`Cancer Type`) %>%
       as_vector()
 
+    #we then use the vector of the top 4 most common cancer types to filter the entire dataset
     msk_most_common <- msk %>% filter(`Cancer Type` %in% most_common_cancer_types)
 
 **Exercise 2** Plot of the density of `DNA Input`
 
+    #To plot a single continuous variable, only the x aesthetic needs to be specified. It is plotted on a log scale to get a better sense of the distribution of the variable. 
     msk_most_common %>% ggplot(aes(x = `Mutation Count`)) +
       geom_density(aes(fill = `Cancer Type`), alpha = 0.3) +
       scale_x_log10() +
@@ -303,8 +315,11 @@ types of cancer.
 
 <img src="datateachr-analysis_files/figure-markdown_strict/unnamed-chunk-2-1.png" style="display: block; margin: auto auto auto 0;" />
 
+    #The mutation count distribution is plotted for each cancer type and adjust the alpha to increase the readability of the plot
+
 **Exercise 3** Plot of the distribution of `Fraction Genome Altered`
 
+    #The fraction of the genome altered for different cancer types is plotted and faceted by rows to easily compare the distributions.
     msk_most_common %>% ggplot(aes(x = `Fraction Genome Altered`)) +
       geom_histogram() +
       facet_grid(rows = vars(`Cancer Type`), scales = "free_y")
@@ -315,9 +330,12 @@ types of cancer.
 
 <img src="datateachr-analysis_files/figure-markdown_strict/unnamed-chunk-3-1.png" style="display: block; margin: auto auto auto 0;" />
 
+    #The x axis is kept fixed to allow for objective comparison of the mutation counts between cancer types, while the y-axis is freed as we are more concerned with the proportion rather than the absolute counts within each type since we the number of cases is not equal. 
+
 **Exercise 4** Boxplot of `Overall Survival (Months)` across various
 `Smoking History`.
 
+    #Rows with NA for the smoking history variable is excluded as we do not want to included NA as a factor for our boxplots. 
     msk_most_common %>% filter(!is.na(`Smoking History`)) %>% ggplot(aes(x = `Smoking History`, y = `Overall Survival (Months)`)) +
       geom_boxplot()
 
