@@ -54,6 +54,8 @@ msk <- read_tsv("msk_impact_2017_clinical_data.tsv")
 quick_look(msk)
 metastatic_BC <- read_tsv("brca_mskcc_2019_clinical_data.tsv")
 quick_look(metastatic_BC)
+
+#keept the msk variable names as strings as they could be easily incorporated into markdown text.  
 ```
 
 # 1.3 Choosing 2 of the 4 datasets
@@ -77,9 +79,9 @@ Looking at the `metastatic_BC` dataset, it appears a variable describing an outc
 After having formulated research questions for both the datasets, I have chosen the `msk` dataset as it is a larger cohort of patients and includes various types of cancer. On the other hand, the `metastatic_BC` dataset was gather from a clinical study and thus represents a more homogeneous group of patients. The data was also gathered with the hypothesis of testing the effectiveness of the experimental intervention in mind. Thus, I believe the diversity of the `msk` dataset might lend to a more interesting and open-ended exploration, hence why I chose it for the next section of the project. 
 
 # 2.1 Data exploration 
-I will perform several data analysis exercises to gain a deeper understanding of the data contained. 
+I will perform 4 data analysis exercises to gain a deeper understanding of the data contained. 
 
-**Exercise**
+**Exercise 1**
 Filtering of dataset to include only the 4 most common types of cancer.
 ``` {r}
   most_common_cancer_types <- msk %>%
@@ -93,31 +95,50 @@ Filtering of dataset to include only the 4 most common types of cancer.
 msk_most_common <- msk %>% filter(`Cancer Type` %in% most_common_cancer_types)
 ```
 
-**Exercise** 
+**Exercise 2** 
 Plot of the density of `DNA Input`
 
 ``` {r}
 msk_most_common %>% ggplot(aes(x = `Mutation Count`)) +
-  geom_density() +
-  scale_x_log10()
+  geom_density(aes(fill = `Cancer Type`), alpha = 0.3) +
+  scale_x_log10() +
+  scale_color_discrete()
 ``` 
 
-**Exercise** 
+**Exercise 3** 
 Plot of the distribution of `Fraction Genome Altered`
 
 ``` {r}
 msk_most_common %>% ggplot(aes(x = `Fraction Genome Altered`)) +
-  geom_histogram()
+  geom_histogram() +
+  facet_grid(rows = vars(`Cancer Type`), scales = "free_y")
 ``` 
 
-**Exercise** 
+**Exercise 4** 
 Boxplot of `Overall Survival (Months)` across various `Smoking History`. 
 ``` {r}
 msk_most_common %>% filter(!is.na(`Smoking History`)) %>% ggplot(aes(x = `Smoking History`, y = `Overall Survival (Months)`)) +
   geom_boxplot()
 ``` 
 
-
 # 2.2 Exploration explained
+The data exploration exercises performed both made the dataset more manageable to work with as well as offered us a basic understanding of our dataset to formulate research questions. 
+
+1. Initially, the `msk` dataset contained `r nrow(msk)` cases of 59 different types of cancers. This woukd make it difficult to stratify for `Cancer Type` in our analysis, so the dataset was filtered to only contain the 4 most common types of cancer, which were: `r most_common_cancer_types`. This reduced the dataset to 4,716 cases, or `r as.integer(nrow(msk_most_common)/nrow(msk)*100)`% of the initial dataset.
+
+2. Next, I wanted to see the density distribution of `Mutation Count` for different types of cancer 
+
+3. Similarly, I wanted to see the fraction of the genome altered differed for different types of cancer. 
+
+4. Finally, I looked at the overall survival for patients according to their `Smoking History`.
 
 # 3.1 Research questions
+Following our exploratory data analysis, I formulated the following 4 research questions: 
+
+1. What are the genomic and mutational consequences of a patient's smoking history?
+
+2. What variables are predictive of a patient's overall survival?
+
+3. Which `Cancer Type` is the most deadly?
+
+4. What are the genomic and mutational differences between primary and Metastasis samples?
