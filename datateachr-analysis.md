@@ -5,7 +5,7 @@ This is a data exploration into the datasets from the
 external datasets from [cBioPortal](https://www.cbioportal.org).
 Initially, 4 datasets will be chosen to be further explored. We will
 then choose a single dataset for which we will formulate research
-questions to address with an in depth analysis.
+questions to address with an in-depth analysis.
 
 The primary tool for data cleaning and visualization will be *dplyr* and
 *ggplot* respectively.
@@ -27,16 +27,16 @@ analysis.
 2.  cancer\_sample
 3.  MSK-IMPACT Clinical Sequencing Cohort, available
     [here](https://www.cbioportal.org/study/clinicalData?id=msk_impact_2017).
-    This contains clinical data on patients with cancer, covering 59
-    different types.
+    This contains clinical data on patients with various types of cancer
+    who had their tumour sequenced.
 4.  buparlisib and letrozole in ER+ metastatic breast cancer, available
     [here](https://www.cbioportal.org/study/clinicalData?id=brca_mskcc_2019).
     This contains clinical data on patients with cancer who were
-    enrolled into a clinical trial for two drugs.
+    enrolled into a clinical trial for the two two drugs.
 
 # 1.2 Data overview
 
-We will now use basic R and tidyverse functions to gain a better
+We will now use base R and tidyverse tools to gain a better
 understanding of the data contained within each dataset. The first two
 datasets can simply be loaded natively in R using `apt_buildings` and
 `cancer_sample` as we have already loaded the *datateachr* package. The
@@ -241,12 +241,15 @@ contain any missing values.
 
 3.  The `msk` dataset is composed of 26 aspects of 10,945 patient
     enrollments into the MSK-IMPACT tumour sequencing study. As the data
-    contains NA values, it is not clean.
+    contains NA values, it is not clean. It contains variables
+    describing characteristics of both the patient and the tumour.
 
 4.  The `metastatic_BC` dataset is composed of 29 aspects of 70 patient
     enrollments into a clincial trial for the drugs buparlisib and
     letrozole in estrogen receptor-positive, metastatic breast cancer.
-    As the data contains NA values, it is not clean.
+    As the data contains NA values, it is not clean.Variables describe
+    both patient and tumour characteristics, with several variables
+    related to relevant aspects and outcomes of the clinical trial.
 
 From the insights into the dataset that we extracted, I have chosen the
 `msk` and `metastatic_BC` datasets as they are the only two containing
@@ -284,10 +287,12 @@ for the next section of the project.
 # 2.1 Data exploration
 
 I will perform 4 data analysis exercises to gain a deeper understanding
-of the data contained.
+of the data contained in `msk`.
 
-**Exercise 1** Filtering of dataset to include only the 4 most common
-types of cancer.
+**Exercise 1 :** Filtering of dataset to include only the 4 most common
+types of cancer. This was done to make the dataset more manageable to
+work with, as well as to stratify by cancer type in our analysis while
+maintaining readability.
 
      #we first summarize the dataset to reflect how many patients there are for each cancer type, before selecting the top 4 and storing them in a vector
      most_common_cancer_types <- msk %>%
@@ -298,10 +303,14 @@ types of cancer.
       select(`Cancer Type`) %>%
       as_vector()
 
-    #we then use the vector of the top 4 most common cancer types to filter the entire dataset
+    #we then use the vector of the top 4 most common cancer types to filter the entire dataset 
     msk_most_common <- msk %>% filter(`Cancer Type` %in% most_common_cancer_types)
 
-**Exercise 2** Plot of the density of `DNA Input`
+**Exercise 2 :** Plot of the density of `Mutation Count`. Since we took
+a subset from the initial dataset that only contains the 4 most common
+cancer types, we can observe the distribution for each type (whereas
+including all cancer types from the orignal dataset would overwhelm the
+plot).
 
     #To plot a single continuous variable, only the x aesthetic needs to be specified. It is plotted on a log scale to get a better sense of the distribution of the variable. 
     msk_most_common %>% ggplot(aes(x = `Mutation Count`)) +
@@ -313,13 +322,15 @@ types of cancer.
 
     ## Warning: Removed 198 rows containing non-finite values (stat_density).
 
-<img src="datateachr-analysis_files/figure-markdown_strict/unnamed-chunk-2-1.png" style="display: block; margin: auto auto auto 0;" />
+<img src="datateachr-analysis_files/figure-markdown_strict/exercise-2-1.png" style="display: block; margin: auto auto auto 0;" />
 
-    #The mutation count distribution is plotted for each cancer type and adjust the alpha to increase the readability of the plot
+    #The mutation count distribution is plotted for each cancer type so alpha is adjusted to increase the readability of the plot
 
-**Exercise 3** Plot of the distribution of `Fraction Genome Altered`
+**Exercise 3 :** Plot of the distribution of `Fraction Genome Altered`.
+Histograms for each of the 4 most common cancer types can easily be
+compared.
 
-    #The fraction of the genome altered for different cancer types is plotted and faceted by rows to easily compare the distributions.
+    #The fraction of the genome altered for different cancer types is plotted and faceted by rows for each type.
     msk_most_common %>% ggplot(aes(x = `Fraction Genome Altered`)) +
       geom_histogram() +
       facet_grid(rows = vars(`Cancer Type`), scales = "free_y")
@@ -328,20 +339,24 @@ types of cancer.
 
     ## Warning: Removed 2 rows containing non-finite values (stat_bin).
 
-<img src="datateachr-analysis_files/figure-markdown_strict/unnamed-chunk-3-1.png" style="display: block; margin: auto auto auto 0;" />
+<img src="datateachr-analysis_files/figure-markdown_strict/exercise-3-1.png" style="display: block; margin: auto auto auto 0;" />
 
-    #The x axis is kept fixed to allow for objective comparison of the mutation counts between cancer types, while the y-axis is freed as we are more concerned with the proportion rather than the absolute counts within each type since we the number of cases is not equal. 
+    #The x axis is kept fixed to allow for objective comparison of the mutation counts between cancer types, while the y-axis is freed as we are more interested in the proportion rather than the absolute counts within each type since we the number of cases is not equal. 
 
-**Exercise 4** Boxplot of `Overall Survival (Months)` across various
-`Smoking History`.
+**Exercise 4 :** Boxplot of `Overall Survival (Months)` across various
+`Smoking History`. It is well established that smoking is a risk factor
+for various types of cancer, and thus this should also be reflected in
+our dataset.
 
     #Rows with NA for the smoking history variable is excluded as we do not want to included NA as a factor for our boxplots. 
-    msk_most_common %>% filter(!is.na(`Smoking History`)) %>% ggplot(aes(x = `Smoking History`, y = `Overall Survival (Months)`)) +
+    msk %>% filter(!is.na(`Smoking History`)) %>% ggplot(aes(x = `Smoking History`, y = `Overall Survival (Months)`)) +
       geom_boxplot()
 
-    ## Warning: Removed 1031 rows containing non-finite values (stat_boxplot).
+    ## Warning: Removed 2801 rows containing non-finite values (stat_boxplot).
 
-<img src="datateachr-analysis_files/figure-markdown_strict/unnamed-chunk-4-1.png" style="display: block; margin: auto auto auto 0;" />
+<img src="datateachr-analysis_files/figure-markdown_strict/exercise-4-1.png" style="display: block; margin: auto auto auto 0;" />
+
+    #Since we do not stratify analysis by cancer type, we can use the initial dataset.
 
 # 2.2 Exploration explained
 
@@ -358,25 +373,30 @@ our dataset to formulate research questions.
     dataset.
 
 2.  Next, I wanted to see the density distribution of `Mutation Count`
-    for different types of cancer
+    for different types of cancer. It is well established that different
+    cancer types have their unique mutational characteristics, so it was
+    reassuring to see this reflected in our data.
 
 3.  Similarly, I wanted to see the fraction of the genome altered
-    differed for different types of cancer.
+    differed for different types of cancer. Genomic instability is a
+    hallmark of cancer, and also varies across different types.
 
 4.  Finally, I looked at the overall survival for patients according to
-    their `Smoking History`.
+    their `Smoking History`. Although it is known smoking is a risk
+    factor for cancer, I wanted to see the effect on overall survival in
+    our dataset.
 
 # 3.1 Research questions
 
 Following our exploratory data analysis, I formulated the following 4
 research questions:
 
-1.  What are the genomic and mutational consequences of a patient’s
-    smoking history?
+1.  Which `Cancer Type` is the most deadly?
 
 2.  What variables are predictive of a patient’s overall survival?
 
-3.  Which `Cancer Type` is the most deadly?
-
-4.  What are the genomic and mutational differences between primary and
+3.  What are the genomic and mutational differences between primary and
     Metastasis samples?
+
+4.  What are the genomic and mutational consequences of a patient’s
+    smoking history?
