@@ -1,6 +1,6 @@
 ---
 title: "Mini Data Analysis Milestone 2"
-output: html_document
+output: md_document
 ---
 
 *To complete this milestone, you can either edit [this `.rmd` file](https://raw.githubusercontent.com/UBC-STAT/stat545.stat.ubc.ca/master/content/mini-project/mini-project-2.Rmd) directly. Fill in the sections that are commented out with `<!--- start your work here--->`. When you are done, make sure to knit to an `.md` file by changing the output in the YAML header to `github_document`, before submitting a tagged release on canvas.*
@@ -47,7 +47,7 @@ First, write out the 4 research questions you defined in milestone 1 were. This 
 
 <!-------------------------- Start your work below ---------------------------->
 1. Which `Cancer Type` is the most deadly?
-2. Are patient variables or tumour variables more predictive of overall survival?
+2. Are patient variables or sample variables more predictive of overall survival?
 3. What are the differences in the genomic and mutational variables between primary and Metastasis samples?
 4. What are the genomic and mutational consequences of a patient's smoking history?
 <!----------------------------------------------------------------------------->
@@ -78,6 +78,7 @@ Make sure it's clear what research question you are doing each operation for!
 **1. Which `Cancer Type` is the most deadly?**
 
 While overall survival will also reflect other factors such as treatment and stage of the disease, it will be the best surrogate for the disease burden of each cancer type. 
+
 ```{r question1a}
 # Calculate summary statistics of overall survival for each cancer type
 most_deadly <- msk %>%
@@ -107,33 +108,61 @@ We can see that 9 cancer types have a median overall survival of under a year. G
 msk %>%
   filter(`Cancer Type` %in% most_deadly_types & !is.na(`Overall Survival (Months)`)) %>%
   mutate(type = fct_reorder(`Cancer Type`, `Overall Survival (Months)`)) %>%
-  ggplot(aes(x= type, y = `Overall Survival (Months)`)) +
+  ggplot(aes(x= type, y = `Overall Survival (Months)`, color = type)) +
   geom_violin(trim=FALSE) +
-  geom_boxplot(width = 0.1, outlier.color = "red", outlier.size = 0.5) +
-  theme(axis.text.x = element_text(size = 6, angle = 45, vjust = 1, hjust = 1))
+  geom_boxplot(width = 0.1, outlier.color = "black", outlier.size = 0.5) +
+  theme(axis.text.x = element_text(size = 6, angle = 45, vjust = 1, hjust = 1), legend.position = "none")
 
 # changes to the theme makes the geoms more visually appealing, the axis labels more readable, and the outliers more obvious. 
 
 ```
 We visualized the boxplots for the 10 cancer types with the shortest median overall survival. While Violin plots helped us to peek at the underlying sample distributions, we must also consider the bias from the variable sample size of each type.
 
+**2. Are patient variables or sample variables more predictive of overall survival?**
 
-**2. Are patient variables or tumour variables more predictive of overall survival?**
+We will look at the following patient variables: `Smoking History` and `Sex`. We will look at the following sample variables: `Specimen Type` and `Specimen Preservation Type`.
 
-```{r question2a}
+```{r question2a, message=FALSE}
+# remove NA values in overall survival and group by chosen patient variables to compute summary statistics
+msk_patient <- msk %>%
+  filter(!is.na(`Overall Survival (Months)`)) %>%
+  group_by(`Smoking History`, `Sex`) %>%
+  summarize(median_os = median(`Overall Survival (Months)`),
+            mean_os = mean(`Overall Survival (Months)`),
+            count = n())
 
+print(msk_patient)
+
+# repeated for chosen sample variables
+msk_sample <- msk %>%
+  filter(!is.na(`Overall Survival (Months)`) & `Specimen Type` != "#N/A") %>%
+  group_by(`Specimen Type`, `Specimen Preservation Type`) %>%
+  summarize(median_os = median(`Overall Survival (Months)`),
+            mean_os = mean(`Overall Survival (Months)`),
+            count = n())
+
+print(msk_sample)
 ```
+
+From the calculated summary statistics, it appears that `Smoking History` is associated with overall survival while `Sex` is not. For sample variables, it appears that both the variables we consider may be associated with overall survival. We will then generate a scatter plot of `Fraction Genome Altered` and `Sample coverage`, coloring the inidividual points patient survival status. 
 
 ```{r question2b}
+# NA's in overall survival are removed, before a point geom is generated
 msk %>%
-  filter(!is.na(`Overall Survival (Months)`)) %>%
-  ggplot(aes(`Fraction Genome Altered`, `Overall Survival (Months)`)) +
-  geom_point(alpha = 0.1)
+  filter(!is.na(`Overall Survival (Months)`) & !is.na(`Fraction Genome Altered`)) %>%
+    ggplot(aes(x = `Fraction Genome Altered`, y = `Sample coverage`, color = `Overall Survival Status`)) +
+  geom_point(alpha = 0.25, size = 1)
+#alpha is changed to uncover overlapping points
 ```
 
-3. What are the genomic and mutational differences between primary and Metastasis samples?
+From the plot, it appears that sample with higher coverage were typically from living patients.
+
+**3. What are the genomic and mutational differences between primary and Metastasis samples?**
+
+We begin by calculating summary statistics for metastatic and primary samples. 
 
 ```{r question3a}
+# NA's in fraction genome altered is removed before summary statistics are calculated for each sample type
 msk_sample_type <- msk %>%
   filter(!is.na(`Fraction Genome Altered`)) %>%
   group_by(`Sample Type`) %>%
@@ -147,9 +176,11 @@ msk_sample_type <- msk %>%
 
 print(msk_sample_type)
 ```
+We then plot the density curves of fraction of genome altered for both types of samples. From our summarize data, we can also plot a vertical line representing the median for both groups. 
 
 ```{r question3b}
-# we remove rows that cotains NA values for the fraction genome altered variable, and plot a density curve for each sample type 
+# We remove rows that contains NA values for the fraction genome altered variable
+# A density curve is plotted for each sample type 
 msk %>%
   filter(!is.na(`Fraction Genome Altered`)) %>%
   ggplot(aes(x = `Fraction Genome Altered`, fill = `Sample Type`)) +
@@ -160,9 +191,15 @@ msk %>%
 #we can add the median as a vertical line using our summarize data
 ```
 
-4. What are the genomic and mutational consequences of a patient's smoking history?
+This illustrates the substantial difference in `Fraction Genome Altered` between the two samples types. 
+
+**4. What are the genomic and mutational consequences of a patient's smoking history?**
+
+We do a similar analysis as for question 3, but this time grouping the data by smoking history. We observe that the differences in the calculated summary statistics between groups are small. 
 
 ```{r question4a}
+# NA's in fraction genome altered and smoking history are removed
+# Summary statistics are calculated for each category of smoking history
 msk_smoking_history <- msk %>%
   filter(!is.na(`Fraction Genome Altered`) & !is.na(`Smoking History`)) %>%
   group_by(`Smoking History`) %>%
@@ -176,9 +213,11 @@ msk_smoking_history <- msk %>%
 
 print(msk_smoking_history)
 ```
-
+This is then visualized and can be contrasted with the plot generated for question 3. It is clear that any differences in `Fraction Genome Altered` between smoking history groups is smaller than between sample types. 
 
 ```{r question4b}
+# NA's in the variables to be plotted are removed
+# A density curve is plotted for each smoking history
 msk %>%
   filter(!is.na(`Smoking History`) & !is.na(`Fraction Genome Altered`)) %>%
   ggplot(aes(x = `Fraction Genome Altered`, fill = `Smoking History`)) +
@@ -197,7 +236,7 @@ Based on the operations that you've completed, how much closer are you to answer
 
 From our analysis, we were able to arrange the cancer types in order of lowest median overall survival, and this showed us a few interesting observations. First, 5 of the 10 most deadly cancer types identified in this manner had a sample size of under 10 out of over `nrow(msk)` samples. As well, since Cancer of Unknown Primary was the third deadliest cancer, we might be persuaded to make the conclusion that disease in which we have less knowledge will lead to a lower patient life expectancy. However, we must also consider that such observations are more likely attributed to the small sample sizes for certain types and that cancers of unknown primary would likely be late stage disease that has metastasized, making it more deadly than disease that is detected earlier or has yet to metastasize. 
 
-**2. Are patient variables or tumour variables more predictive of overall survival?**
+**2. Are patient variables or sample variables more predictive of overall survival?**
 
 
 **3. What are the differences in the genomic and mutational variables between primary and Metastasis samples?**
@@ -227,8 +266,15 @@ A reminder of the definition of *tidy* data:
 Based on the definition above, can you identify if your data is tidy or untidy? Go through all your columns, or if you have >8 variables, just pick 8, and explain whether the data is untidy or tidy.
 
 <!--------------------------- Start your work below --------------------------->
+In our dataset, each row corresponds to a unique tumor sample from patients in the MSK-IMPACT Clinical Sequencing Cohort. As well, each column is a variable that describes either a characteristic of the patient (e.g. `Patient ID`, and `Smoking History`) or of the sample itself (e.g. `Cancer Type`, `Oncotree Code`, `Fraction Genome Altered`, `Metastatic Site`, `Primary Tumor Site`, and `Sample Type`). The data is structured in a manner in which each cell only contains a single value, but in some cases it is missing. Therefore, the structure of this dataset is tidy, despite it being incomplete in the sense that there are missing values.
 
+```{r tidydata}
+# we select 8 variables from the original dataset to illustrate the data is clean
+msk_tidy <- msk %>%
+  select(`Patient ID`, `Cancer Type`, `Oncotree Code`, `Fraction Genome Altered`, `Metastatic Site`, `Primary Tumor Site`, `Smoking History`, `Sample Type`)
 
+head(msk_tidy, 10)
+```
 <!----------------------------------------------------------------------------->
 
 ### 2.2 (5 points)
@@ -240,8 +286,34 @@ If your data is untidy, then tidy it! Then, untidy it back to it's original stat
 Be sure to explain your reasoning for this task. Show us the "before" and "after".
 
 <!--------------------------- Start your work below --------------------------->
+We will begin be selecting 8 variables of the original `ncol(msk)`, and untidying the data so that each row corresponds to a patient by combining the `Fraction Genome Altered` of primary and metastatic samples. In the original dataset, each observation corresponded to a different sample, which may have been from the same patient. Now, if there are multiple samples from the same patient, they will no longer be individual rows but rather as multiple observations contained in the same row. 
 
+```{r untidying, warning=FALSE}
+# we use pivot wider to reduce the number of rows from the initial data set
+# Sample type is used for the names of the new columns
+# Fraction of genome altered becomes the values for the new variables
 
+msk_untidy <- msk_tidy %>%
+  pivot_wider(id_cols = c(-`Sample Type`, -`Fraction Genome Altered`), 
+              names_from = `Sample Type`,
+              values_from = `Fraction Genome Altered`)
+
+head(msk_untidy, 10)
+```
+Our data is now untidy, as we have a variable, `Sample Type`, that is in the header of the table rather than as a column. As well, since some patients had multiple samples of the same `Sample Type`, some cells contain more than 1 value. Thus, the data has been untidied. We will now tidy the data back to its original state, so that Sample Type is again its own variable, and each row corresponds to a unique sample. 
+
+```{r retidy}
+# restore the Sample Type Column, and combine the values from the two variables in the untidy dataset into a single variable
+msk_retidy <- msk_untidy %>% 
+  pivot_longer(cols = c(Primary, Metastasis),
+               names_to = "Sample Type",
+               values_to = "Fraction Genome Altered") %>%
+  unnest()
+# we must use unnest to regenerate each of the orignal columns as the pivot longer function initially creates a list column
+# rows that contained two values stored as a vector of length 2 in the list column are now individual samples represented in their own row
+
+head(msk_retidy, 10)
+``` 
 <!----------------------------------------------------------------------------->
 
 ### 2.3 (5 points)
@@ -251,8 +323,30 @@ Now, you should be more familiar with your data, and also have made progress in 
 Try to choose a version of your data that you think will be appropriate to answer these 2 questions in milestone 3. Use between 4 and 8 functions that we've covered so far (i.e. by filtering, cleaning, tidy'ing, dropping irrelvant columns, etc.). 
 
 <!--------------------------- Start your work below --------------------------->
+From our initial 4 research questions, 2 have been selected for the remainder of this project.
 
+**Are patient variables or sample variables more predictive of overall survival?**
 
+While our data analysis and visualization has helped us in exploring this question, it was unable to fully address the scope required to provide a more comprehensive conclusion. As well, I believe this would be a question that is better addressed by modelling rather than data visualization, so I believe it well lend itself well to the next steps of the project.
+
+**What are the differences in the genomic and mutational variables between primary and Metastasis samples?**
+
+Our analysis and visualization has already revealed very intriguing differences between primary and metastasis samples. In the subsequent steps of this project, these observations can be fully dissected. Metastasis is also a relevant clinical outcome that may be predictive of disease burden, it would be interesting to see if this is independent of other changes associated with metastatic disease.  
+
+We will now subset our data in preparation for the next steps of this project.
+
+```{r subset}
+# we begin by selecting variables that are relevant to our research questions, and filtering for NA values as necessary.
+# we combine NA in smoking history with the unknown category, as they effectively have the same meaning
+# we arrange by overall survival to make the dataframe more intuitive for ourselves
+msk_clean <- msk %>%
+  select(-`Study ID`, -`Sample ID`, -`Cancer Type Detailed`, -`Matched Status`, -`Sample Class`, -`Sample Collection Source`) %>%
+  filter(!is.na(`Overall Survival (Months)`)) %>%
+  mutate(`Smoking History` = ifelse(is.na(`Smoking History`), Unknown, `Smoking History`)) %>%
+  arrange(desc(`Overall Survival (Months)`))
+
+head(msk_clean, 10)
+```
 <!----------------------------------------------------------------------------->
 
 *When you are done, knit an `md` file. This is what we will mark! Make sure to open it and check that everything has knitted correctly before submitting your tagged release.*
