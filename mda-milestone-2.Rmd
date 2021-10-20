@@ -1,0 +1,262 @@
+---
+title: "Mini Data Analysis Milestone 2"
+output: html_document
+---
+
+*To complete this milestone, you can either edit [this `.rmd` file](https://raw.githubusercontent.com/UBC-STAT/stat545.stat.ubc.ca/master/content/mini-project/mini-project-2.Rmd) directly. Fill in the sections that are commented out with `<!--- start your work here--->`. When you are done, make sure to knit to an `.md` file by changing the output in the YAML header to `github_document`, before submitting a tagged release on canvas.*
+
+# Welcome back to your mini data analysis project!
+
+This time, we will explore more in depth the concept of *tidy data*, and hopefully investigate further into your research questions that you defined in milestone 1.
+
+**NOTE**: The main purpose of the mini data analysis is to integrate what you learn in class in an analysis. Although each milestone provides a framework for you to conduct your analysis, it's possible that you might find the instructions too rigid for your data set. If this is the case, you may deviate from the instructions -- just make sure you're demonstrating a wide range of tools and techniques taught in this class.
+
+Begin by loading your data and the tidyverse package below: 
+
+```{r, message = FALSE}
+library(datateachr) # <- might contain the data you picked!
+library(tidyverse)
+
+msk <- read_tsv("msk_impact_2017_clinical_data.tsv")
+
+#external datasets are first downloaded and loaded using readr
+```
+
+# Learning Objectives
+
+By the end of this milestone, you should:
+
++ Become familiar with manipulating and summarizing your data in tibbles using `dplyr` and `tidyr`, with a research question in mind.
++ Understand what *tidy* data is, and how to create it. In milestone 3, we will explore when this might be useful.
++ Generate a reproducible and clear report using R Markdown.
++ Gain a greater understanding of how to use R to answer research questions about your data.
+
+**Things to keep in mind**
+
++ Remember to document your code, be explicit about what you are doing, and write notes in this markdown document when you feel that context is required. Create your analysis as if someone else will be reading it! **There will be 2.5 points reserved for reproducibility, readability, and repo organization.**
+
++ Before working on each task, you should always keep in mind the specific **research question** that you're trying to answer.
+
+# Task 1: Process and summarize your data (15 points)
+
+From milestone 1, you should have an idea of the basic structure of your dataset (e.g. number of rows and columns, class types, etc.). Here, we will start investigating your data more in-depth using various data manipulation functions. 
+
+### 1.1 (2.5 points) 
+
+First, write out the 4 research questions you defined in milestone 1 were. This will guide your work through milestone 2:
+
+<!-------------------------- Start your work below ---------------------------->
+1. Which `Cancer Type` is the most deadly?
+2. Are patient variables or tumour variables more predictive of overall survival?
+3. What are the differences in the genomic and mutational variables between primary and Metastasis samples?
+4. What are the genomic and mutational consequences of a patient's smoking history?
+<!----------------------------------------------------------------------------->
+
+### 1.2 (10 points)
+
+Now, for each of your four research questions, choose one task from options 1-4 (summarizing), and one other task from 4-8 (graphing). You should have 2 tasks done for each research question (8 total). Make sure it makes sense to do them! (e.g. don't use a numerical variables for a task that needs a categorical variable.). Comment on why each task helps (or doesn't!) answer the corresponding research question. 
+
+Ensure that the output of each operation is printed! 
+
+**Summarizing:**
+
+1. Compute the *range*, *mean*, and *two other summary statistics* of **one numerical variable** across the groups of **one categorical variable** from your data.
+2. Compute the number of observations for at least one of your categorical variables. Do not use the function `table()`!
+3. Create a categorical variable with 3 or more groups from an existing numerical variable. You can use this new variable in the other tasks! *An example: age in years into "child, teen, adult, senior".*
+4. Based on two categorical variables, calculate two summary statistics of your choosing.
+
+**Graphing:**
+
+5. Create a graph out of summarized variables that has at least two geom layers.
+6. Create a graph of your choosing, make one of the axes logarithmic, and format the axes labels so that they are "pretty" or easier to read. 
+7. Make a graph where it makes sense to customize the alpha transparency.
+8. Create 3 histograms out of summarized variables, with each histogram having different sized bins. Pick the "best" one and explain why it is the best.
+
+Make sure it's clear what research question you are doing each operation for!
+
+<!------------------------- Start your work below ----------------------------->
+**1. Which `Cancer Type` is the most deadly?**
+
+While overall survival will also reflect other factors such as treatment and stage of the disease, it will be the best surrogate for the disease burden of each cancer type. 
+```{r question1a}
+# Calculate summary statistics of overall survival for each cancer type
+most_deadly <- msk %>%
+  filter(!is.na(`Overall Survival (Months)`)) %>%
+  group_by(`Cancer Type`) %>%
+  summarize(median_os = median(`Overall Survival (Months)`),
+            iqr_os = IQR(`Overall Survival (Months)`),
+            mean_os = mean(`Overall Survival (Months)`),
+            range_os = diff(range(`Overall Survival (Months)`)),
+            n_samples = n()) %>%
+  arrange(median_os)
+
+head(most_deadly, 20)
+
+# store the 10 most deadly types for graphing
+most_deadly_types <- most_deadly %>%
+  head(10) %>%
+  select(`Cancer Type`) %>%
+  as_vector()
+```
+We can see that 9 cancer types have a median overall survival of under a year. Generally, these were cancers with a small number of samples, of unknown primary, or pancreatic and lung cancer. This can be represented graphically with box plots and dot plots that show the overall survival for each sample, segregated by `Cancer Type`.
+
+```{r question1b}
+# We filter the msk dataset to include only the 10 most deadly cancer types defined previously
+# We created a new factor variable for cancer type that is reordered from lowest to highest median overall survival
+# We then generate boxplots and violin plots of the overall survival for the 10 cancer types
+msk %>%
+  filter(`Cancer Type` %in% most_deadly_types & !is.na(`Overall Survival (Months)`)) %>%
+  mutate(type = fct_reorder(`Cancer Type`, `Overall Survival (Months)`)) %>%
+  ggplot(aes(x= type, y = `Overall Survival (Months)`)) +
+  geom_violin(trim=FALSE) +
+  geom_boxplot(width = 0.1, outlier.color = "red", outlier.size = 0.5) +
+  theme(axis.text.x = element_text(size = 6, angle = 45, vjust = 1, hjust = 1))
+
+# changes to the theme makes the geoms more visually appealing, the axis labels more readable, and the outliers more obvious. 
+
+```
+We visualized the boxplots for the 10 cancer types with the shortest median overall survival. While Violin plots helped us to peek at the underlying sample distributions, we must also consider the bias from the variable sample size of each type.
+
+
+**2. Are patient variables or tumour variables more predictive of overall survival?**
+
+```{r question2a}
+
+```
+
+```{r question2b}
+msk %>%
+  filter(!is.na(`Overall Survival (Months)`)) %>%
+  ggplot(aes(`Fraction Genome Altered`, `Overall Survival (Months)`)) +
+  geom_point(alpha = 0.1)
+```
+
+3. What are the genomic and mutational differences between primary and Metastasis samples?
+
+```{r question3a}
+msk_sample_type <- msk %>%
+  filter(!is.na(`Fraction Genome Altered`)) %>%
+  group_by(`Sample Type`) %>%
+  summarize(median_genome_altered = median(`Fraction Genome Altered`),
+            count = n(),
+            iqr_genome_altered = IQR(`Fraction Genome Altered`),
+            mean_genome_altered= mean(`Fraction Genome Altered`),
+            mean_mutation_count = mean(`Mutation Count`),
+            median_mutation_count = median(`Mutation Count`))
+
+
+print(msk_sample_type)
+```
+
+```{r question3b}
+# we remove rows that cotains NA values for the fraction genome altered variable, and plot a density curve for each sample type 
+msk %>%
+  filter(!is.na(`Fraction Genome Altered`)) %>%
+  ggplot(aes(x = `Fraction Genome Altered`, fill = `Sample Type`)) +
+  geom_density(aes(color = `Sample Type`), alpha = 0.25) +
+  geom_vline(data=msk_sample_type, aes(xintercept=median_genome_altered, color=`Sample Type`),
+             linetype="dashed")
+
+#we can add the median as a vertical line using our summarize data
+```
+
+4. What are the genomic and mutational consequences of a patient's smoking history?
+
+```{r question4a}
+msk_smoking_history <- msk %>%
+  filter(!is.na(`Fraction Genome Altered`) & !is.na(`Smoking History`)) %>%
+  group_by(`Smoking History`) %>%
+  summarize(median_genome_altered = median(`Fraction Genome Altered`),
+            count = n(),
+            iqr_genome_altered = IQR(`Fraction Genome Altered`),
+            mean_genome_altered= mean(`Fraction Genome Altered`),
+            median_mutation_count = median(`Mutation Count`),
+            mean_mutation_count = mean(`Mutation Count`))
+
+
+print(msk_smoking_history)
+```
+
+
+```{r question4b}
+msk %>%
+  filter(!is.na(`Smoking History`) & !is.na(`Fraction Genome Altered`)) %>%
+  ggplot(aes(x = `Fraction Genome Altered`, fill = `Smoking History`)) +
+  geom_density(aes(color = `Smoking History`), alpha = 0.25) +
+  geom_vline(data=msk_smoking_history, aes(xintercept = median_genome_altered, color = `Smoking History`),
+             linetype="dashed")
+```
+<!----------------------------------------------------------------------------->
+
+### 1.3 (2.5 points)
+
+Based on the operations that you've completed, how much closer are you to answering your research questions? Think about what aspects of your research questions remain unclear. Can your research questions be refined, now that you've investigated your data a bit more? Which research questions are yielding interesting results?
+
+<!------------------------- Write your answer here ---------------------------->
+**1. Which `Cancer Type` is the most deadly?**
+
+From our analysis, we were able to arrange the cancer types in order of lowest median overall survival, and this showed us a few interesting observations. First, 5 of the 10 most deadly cancer types identified in this manner had a sample size of under 10 out of over `nrow(msk)` samples. As well, since Cancer of Unknown Primary was the third deadliest cancer, we might be persuaded to make the conclusion that disease in which we have less knowledge will lead to a lower patient life expectancy. However, we must also consider that such observations are more likely attributed to the small sample sizes for certain types and that cancers of unknown primary would likely be late stage disease that has metastasized, making it more deadly than disease that is detected earlier or has yet to metastasize. 
+
+**2. Are patient variables or tumour variables more predictive of overall survival?**
+
+
+**3. What are the differences in the genomic and mutational variables between primary and Metastasis samples?**
+
+From out dataset, we had nearly equal rows of metastatic and primary samples. Looking at the mean and median of the fraction of the genome altered in these two types of samples, it is evident that it was generally higher in the metastatic samples. This was confirmed when we plotted the density curves of the fraction of the genome altered for these two groups, as the distribution of the metastatic samples was shifted to the right. However, this was not reflected in the mean and median of `Mutation Count` when stratified by sample type, which may weaken the conclusions that are drawn from looking at only `Fraction Genome Altered`. 
+
+**4. What are the genomic and mutational consequences of a patient's smoking history?**
+
+We were able to calculate summary statistics for `Fraction Genome Altered` and `Mutation Count`, but differences were small. This was also reflected in the density curves of `Fraction Genome Altered`grouped by `Smoking History`, which overlapped significantly. In our analysis, we are only able to show the association between a patient's smoking history and the two variables that we used as surrogate for the genomic and mutation characteristics of the disease. While the difference in the mean `Mutation Count` between smokers and non-smokers is intriguing, it may be due to differences in the types of cancer that smoking is a risk factor for rather than due to direct effect of smoking on the DNA of the tumour.
+
+<!----------------------------------------------------------------------------->
+
+# Task 2: Tidy your data (12.5 points)
+
+In this task, we will do several exercises to reshape our data. The goal here is to understand how to do this reshaping with the `tidyr` package.
+
+A reminder of the definition of *tidy* data:
+
+- Each row is an **observation**
+- Each column is a **variable**
+- Each cell is a **value**
+
+*Tidy'ing* data is sometimes necessary because it can simplify computation. Other times it can be nice to organize data so that it can be easier to understand when read manually. 
+
+### 2.1 (2.5 points)
+
+Based on the definition above, can you identify if your data is tidy or untidy? Go through all your columns, or if you have >8 variables, just pick 8, and explain whether the data is untidy or tidy.
+
+<!--------------------------- Start your work below --------------------------->
+
+
+<!----------------------------------------------------------------------------->
+
+### 2.2 (5 points)
+
+Now, if your data is tidy, untidy it! Then, tidy it back to it's original state.
+
+If your data is untidy, then tidy it! Then, untidy it back to it's original state.
+
+Be sure to explain your reasoning for this task. Show us the "before" and "after".
+
+<!--------------------------- Start your work below --------------------------->
+
+
+<!----------------------------------------------------------------------------->
+
+### 2.3 (5 points)
+
+Now, you should be more familiar with your data, and also have made progress in answering your research questions. Based on your interest, and your analyses, pick 2 of the 4 research questions to continue your analysis in milestone 3, and explain your decision. 
+
+Try to choose a version of your data that you think will be appropriate to answer these 2 questions in milestone 3. Use between 4 and 8 functions that we've covered so far (i.e. by filtering, cleaning, tidy'ing, dropping irrelvant columns, etc.). 
+
+<!--------------------------- Start your work below --------------------------->
+
+
+<!----------------------------------------------------------------------------->
+
+*When you are done, knit an `md` file. This is what we will mark! Make sure to open it and check that everything has knitted correctly before submitting your tagged release.*
+
+### Attribution
+
+Thanks to Victor Yuan for mostly putting this together. 
