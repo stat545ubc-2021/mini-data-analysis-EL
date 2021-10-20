@@ -238,6 +238,7 @@ From our analysis, we were able to arrange the cancer types in order of lowest m
 
 **2. Are patient variables or sample variables more predictive of overall survival?**
 
+In our analysis, we only looked at two patient variables and two sample variables. While this may have revealed the association between certain variables and overall survival, this was inherently biased as they were chosen and not all possible variables were considered. Unfortunately, the analysis done was of extremely limited scope, and fails to make full use of the dataset. It remains an open question whether patient or sample variables are more predictive of overall survival, and we may have to account for the inherent bias present in the dataset as it relates to this question (e.g. uneven number of patient and sample variables).
 
 **3. What are the differences in the genomic and mutational variables between primary and Metastasis samples?**
 
