@@ -142,7 +142,7 @@ as well as whether it contains any NA values.
     ## [1] "Contains NA? FALSE"
 
     #we must first import the last 2 data sets, and again look at their features
-    msk <- read_tsv("msk_impact_2017_clinical_data.tsv")
+    msk <- read_tsv(file.path("data", "msk_impact_2017_clinical_data.tsv"))
     quick_look(msk)
 
     ## Rows: 10,945
@@ -177,7 +177,7 @@ as well as whether it contains any NA values.
 
     ## [1] "Contains NA? TRUE"
 
-    metastatic_BC <- read_tsv("brca_mskcc_2019_clinical_data.tsv")
+    metastatic_BC <- read_tsv(file.path("data", "brca_mskcc_2019_clinical_data.tsv"))
     quick_look(metastatic_BC)
 
     ## Rows: 70

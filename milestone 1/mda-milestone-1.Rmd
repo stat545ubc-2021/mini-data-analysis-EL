@@ -4,9 +4,10 @@ author: Eric Liu
 date: October 9, 2021
 output: md_document
 ---
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(fig.align = 'left', echo = TRUE)
+knitr::opts_knit$set(root.dir = dirname(getwd()))
+# set working directory to be parent folder as it contains the external datasets
 ```
 
 # 0.1 Introduction
@@ -50,9 +51,9 @@ cancer_sample <- cancer_sample
 quick_look(cancer_sample)
 
 #we must first import the last 2 data sets, and again look at their features
-msk <- read_tsv("msk_impact_2017_clinical_data.tsv")
+msk <- read_tsv(file.path("data", "msk_impact_2017_clinical_data.tsv"))
 quick_look(msk)
-metastatic_BC <- read_tsv("brca_mskcc_2019_clinical_data.tsv")
+metastatic_BC <- read_tsv(file.path("data", "brca_mskcc_2019_clinical_data.tsv"))
 quick_look(metastatic_BC)
 
 #keept the msk variable names as strings as they could be easily incorporated into markdown text.  

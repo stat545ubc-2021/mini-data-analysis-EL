@@ -20,11 +20,13 @@ demonstrating a wide range of tools and techniques taught in this class.
 
 Begin by loading your data and the tidyverse package below:
 
+    # external datasets are located in the parent folder
+    knitr::opts_knit$set(root.dir = dirname(getwd()))
+
     library(datateachr) # <- might contain the data you picked!
     library(tidyverse)
 
-    msk <- read_tsv("msk_impact_2017_clinical_data.tsv")
-
+    msk <- read_tsv(file.path("data", "msk_impact_2017_clinical_data.tsv"))
     #external datasets are first downloaded and loaded using readr
 
 # Learning Objectives
@@ -329,7 +331,6 @@ calculated summary statistics between groups are small.
                 mean_genome_altered= mean(`Fraction Genome Altered`),
                 median_mutation_count = median(`Mutation Count`),
                 mean_mutation_count = mean(`Mutation Count`))
-
 
     print(msk_smoking_history)
 
