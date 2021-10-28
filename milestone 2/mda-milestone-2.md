@@ -20,13 +20,11 @@ demonstrating a wide range of tools and techniques taught in this class.
 
 Begin by loading your data and the tidyverse package below:
 
-    # external datasets are located in the parent folder
-    knitr::opts_knit$set(root.dir = dirname(getwd()))
-
     library(datateachr) # <- might contain the data you picked!
     library(tidyverse)
 
-    msk <- read_tsv(file.path("data", "msk_impact_2017_clinical_data.tsv"))
+    msk <- msk <- read_tsv("https://raw.githubusercontent.com/stat545ubc-2021/mini-data-analysis-EL/main/data/msk_impact_2017_clinical_data.tsv")
+
     #external datasets are first downloaded and loaded using readr
 
 # Learning Objectives

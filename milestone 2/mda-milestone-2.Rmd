@@ -14,15 +14,13 @@ This time, we will explore more in depth the concept of *tidy data*, and hopeful
 Begin by loading your data and the tidyverse package below: 
 
 ```{r setup, message = FALSE}
-# external datasets are located in the parent folder
-knitr::opts_knit$set(root.dir = dirname(getwd()))
-
 library(datateachr) # <- might contain the data you picked!
 library(tidyverse)
 ```
 
 ```{r data-loading, message = FALSE}
-msk <- read_tsv(file.path("data", "msk_impact_2017_clinical_data.tsv"))
+msk <- msk <- read_tsv("https://raw.githubusercontent.com/stat545ubc-2021/mini-data-analysis-EL/main/data/msk_impact_2017_clinical_data.tsv")
+
 #external datasets are first downloaded and loaded using readr
 ```
 

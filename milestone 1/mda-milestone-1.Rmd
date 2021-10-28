@@ -6,7 +6,6 @@ output: md_document
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(fig.align = 'left', echo = TRUE)
-knitr::opts_knit$set(root.dir = dirname(getwd()))
 # set working directory to be parent folder as it contains the external datasets
 ```
 
@@ -51,9 +50,10 @@ cancer_sample <- cancer_sample
 quick_look(cancer_sample)
 
 #we must first import the last 2 data sets, and again look at their features
-msk <- read_tsv(file.path("data", "msk_impact_2017_clinical_data.tsv"))
-quick_look(msk)
-metastatic_BC <- read_tsv(file.path("data", "brca_mskcc_2019_clinical_data.tsv"))
+msk_online <- 
+
+msk <- read_tsv("https://raw.githubusercontent.com/stat545ubc-2021/mini-data-analysis-EL/main/data/msk_impact_2017_clinical_data.tsv")
+metastatic_BC <- read_tsv("https://raw.githubusercontent.com/stat545ubc-2021/mini-data-analysis-EL/main/data/brca_mskcc_2019_clinical_data.tsv")
 quick_look(metastatic_BC)
 
 #keept the msk variable names as strings as they could be easily incorporated into markdown text.  
@@ -82,9 +82,9 @@ After having formulated research questions for both the datasets, I have chosen 
 # 2.1 Data exploration 
 I will perform 4 data analysis exercises to gain a deeper understanding of the data contained in `msk`. 
 
-**Exercise 1 :** Filtering of dataset to include only the 4 most common types of cancer. This was done to make the dataset more manageable to work with, as well as to stratify by cancer type in our analysis while maintaining readability. 
+**Exercise 1 :** Filtering of dataset to include only the 4 most common types of cancer. This was done to make the dataset more manageable to work with, as well as to stratify by cancer type in our analysis while maintaining readability.
 ``` {r exercise-1}
- #we first summarize the dataset to reflect how many patients there are for each cancer type, before selecting the top 4 and storing them in a vector
+# we first summarize the dataset to reflect how many patients there are for each cancer type, before selecting the top 4 and storing them in a vector
  most_common_cancer_types <- msk %>%
   group_by(`Cancer Type`) %>%
   summarize(n()) %>%

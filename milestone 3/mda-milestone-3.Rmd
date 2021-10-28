@@ -1,16 +1,16 @@
 ---
 title: "Mini Data-Analysis Deliverable 3"
-output: html_document
+output: md_document
 ---
 
 
 # Welcome to your last milestone in your mini data analysis project!
 
-In Milestone 1, you explored your data and came up with research questions. In Milestone 2, you obtained some results by making summary tables and graphs. 
+In Milestone 1, you explored your data and came up with research questions. In Milestone 2, you obtained some results by making summary tables and graphs.
 
 In this (3rd) milestone, you'll be sharpening some of the results you obtained from your previous milestone by:
 
-+ Manipulating special data types in R: factors and/or dates and times. 
++ Manipulating special data types in R: factors and/or dates and times.
 + Fitting a model object to your data, and extract a result.
 + Reading and writing data as separate files.
 
@@ -18,7 +18,8 @@ In this (3rd) milestone, you'll be sharpening some of the results you obtained f
 
 ## Instructions
 
-**To complete this milestone**, edit [this very `.Rmd` file](https://raw.githubusercontent.com/UBC-STAT/stat545.stat.ubc.ca/master/content/mini-project/mini-project-3.Rmd) directly. Fill in the sections that are tagged with `<!--- start your work here--->`. 
+**To complete this milestone**, edit [this very `.Rmd` file](https://raw.githubusercontent.com/UBC-STAT/stat545.stat.ubc.ca/master/content/mini-project/mini-project-3.Rmd) directly. Fill in the sections that are tagged with `<!--- start your work here--->`. =]
+
 
 **To submit this milestone**, make sure to knit this `.Rmd` file to an `.md` file by changing the YAML output settings from `output: html_document` to `output: github_document`. Commit and push all of your work to your mini-analysis GitHub repository, and tag a release on GitHub. Then, submit a link to your tagged release on canvas. 
 
@@ -26,21 +27,16 @@ In this (3rd) milestone, you'll be sharpening some of the results you obtained f
 
 **Research Questions**: In Milestone 2, you chose two research questions to focus on. Wherever realistic, your work in this milestone should relate to these research questions whenever we ask for justification behind your work. In the case that some tasks in this milestone don't align well with one of your research questions, feel free to discuss your results in the context of a different research question.
 
-
 # Setup
 
 Begin by loading your data and the tidyverse package below: 
 
-```{r setup, message = FALSE}
-# external datasets are located in the parent folder
-knitr::opts_knit$set(root.dir = dirname(getwd()))
-```
-
 ```{r initialize, message = FALSE}
 library(datateachr) # <- might contain the data you picked!
 library(tidyverse)
-
-msk <- read_tsv(file.path("data", "msk_impact_2017_clinical_data.tsv"))
+library(broom)
+library(here)
+msk <- read_tsv("https://raw.githubusercontent.com/stat545ubc-2021/mini-data-analysis-EL/main/data/msk_impact_2017_clinical_data.tsv")
 #external datasets are first downloaded and loaded using readr
 ```
 
@@ -128,12 +124,18 @@ msk_osplot(msk_top10, type_ordered)
 <!-------------------------- Start your work below ---------------------------->
 
 **Task Number**: 2
-For the `Smoking History` variable, several rows have a missing value. As there is also a "Unknown" category for this category, NA's in this context would essentially indicate the same information, in that there is no information on the patient's smoking history.  Thus these levels can be combined when setting this variable as a factor, stored in smoking_history. 
+For the `Smoking History` variable, several rows have a missing value. As there is also a "Unknown" category for this category, NA's in this context would essentially contain the same information, or the lack thereof, the patient's smoking history.  Thus these levels can be combined when setting this variable as a factor, stored in smoking_history. 
 ```{r exercise1c}
+# define factor where NA's are assigned to "Unknown" and remove NA's in overall survival
 msk_smoking <- msk %>%
-  mutate(smoking_history = fct_explicit_na(`Smoking History`, na_level = "Unknown"))
+  mutate(smoking_history = fct_explicit_na(`Smoking History`, na_level = "Unknown")) %>%
+  filter(!is.na(`Overall Survival (Months)`))
 
 head(msk_smoking, 10)
+
+msk_smoking %>%
+  ggplot(aes(x = smoking_history, y = `Overall Survival (Months)`)) +
+  geom_boxplot()
 ```
 <!----------------------------------------------------------------------------->
 
@@ -163,8 +165,48 @@ Fit a model or run a hypothesis test that provides insight on this variable with
     - You could use `lm()` to test for significance of regression.
 
 <!-------------------------- Start your work below ---------------------------->
+First, we can assign each variable as related to either the patient or the sample, and store it in a new dataframe. Then, we clean the data in preparation for modelling. Categorical variables with too many levels such as `Metastatic Site` and `Primary Tumor Site` must be excluded. There are also variables that are perfectly correlated, and hence for modelling purposes only one should be kept. We then extract the significant coefficients from our multivariate linear model, with an alpha of 0.05. 
 
+```{r exercise 2a}
+# manually filter each variable and store in a new tibble
+msk_variables <- tibble(variable_msk = colnames(msk), variable_source = "Patient") %>%
+  mutate(variable_source = case_when(
+    variable_msk %in% c("DNA Input", "Fraction Genome Altered", "Mutation Count", "Sample Collection Source", "Number of Samples Per Patient", "Sample coverage", "Sample Type", "Somatic Status", "Specimen Preservation Type", "Specimen Type", "Tumor Purity") ~ "Sample",
+    variable_msk %in% c("Overall Survival (Months)", "Sex", "Smoking History", "Patient's Vital Status") ~ "Patient",
+    variable_msk %in% c("Study ID", "Patient ID", "Sample ID", "Cancer Type", "Cancer Type Detailed", "Matched Status", "Metastatic Site", "Overall Survival Status", "Primary Tumor Site", "Oncotree Code", "Sample Class") ~ "Neither"))
 
+# we only want to consider variables that are patient or sample attributes, the rest are set as "neither"
+# categorical variables with too many levels must also be excluded prior to modelling
+# perfectly colinear variables are also excluded
+
+print(msk_variables)
+
+# store variables that are irrelevant to our model so they can be filtered
+
+msk_model_variables <- msk_variables %>%
+  filter(variable_source != "Neither") %>%
+  pull(variable_msk)
+
+# remove multiple variables that are not relevant for our model
+
+msk_clean <- msk %>%
+  select(msk_model_variables) %>%
+  na.omit() %>%
+  mutate(`Smoking History` = ifelse(is.na(`Smoking History`), Unknown, `Smoking History`))
+
+msk_clean[sapply(msk_clean, is.character)] <- lapply(msk_clean[sapply(msk_clean, is.character)], 
+                                       as.factor)
+print(msk_clean)
+
+msk_os_model <- glm(`Overall Survival (Months)` ~ ., family = "gaussian", data = msk_clean)
+
+glance(msk_os_model)
+
+msk_sig <- summary(msk_os_model)$coeff[-1,4] < 0.05
+msk_sig <- names(msk_sig)[msk_sig == T]
+
+print(msk_sig)
+```
 <!----------------------------------------------------------------------------->
 
 ## 2.2 (5 points)
@@ -191,8 +233,8 @@ Get set up for this exercise by making a folder called `output` in the top level
 Take a summary table that you made from Milestone 2 (Exercise 1.2), and write it as a csv file in your `output` folder. Use the `here::here()` function.
 
 - **Robustness criteria**: You should be able to move your Mini Project repository / project folder to some other location on your computer, or move this very Rmd file to another location within your project repository / folder, and your code should still work.
-- **Reproducibility criteria**: You should be able to delete the csv file, and remake it simply by knitting this Rmd file. 
-  
+- **Reproducibility criteria**: You should be able to delete the csv file, and remake it simply by knitting this Rmd file.
+
 <!-------------------------- Start your work below ---------------------------->
 ```{r question 3a}
 # generating summary table 
@@ -206,9 +248,9 @@ msk_os_summary <- msk %>%
             n_samples = n()) %>%
   arrange(median_os)
 
-#write as csv
-
-write_csv(msk_os_summary, file.path("output", "msk_summary.csv"))
+#First create output folder if not present in parent folder, then write as csv
+dir.create("output", showWarnings = FALSE) #warning excluded if output already exists
+write_csv(msk_os_summary, here("output", "msk_summary.csv"))
 ```
 
 <!----------------------------------------------------------------------------->
