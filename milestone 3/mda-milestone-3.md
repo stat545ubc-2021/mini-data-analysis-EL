@@ -449,9 +449,9 @@ survival to graphically evaluate our model peformance.
 
 ![](mda-milestone-3_files/figure-markdown_strict/exercise2c-1.png)
 
-It is clear that our model did not perform very well, as it is clear
-that the predicted and actual values deviate substantially from the x =
-y line, shown in red.
+It is clear that our model did not perform very well, as we can see from
+the plot that the predicted and actual values deviate substantially from
+the x = y line, shown in red.
 <!----------------------------------------------------------------------------->
 
 # Exercise 3: Reading and writing data
