@@ -262,6 +262,7 @@ msk_clean %>%
 
 
 ```
+
 It is clear that our model did not perform very well, as it is clear that the predicted and actual values deviate substantially from the x = y line, shown in red. 
 <!----------------------------------------------------------------------------->
 
