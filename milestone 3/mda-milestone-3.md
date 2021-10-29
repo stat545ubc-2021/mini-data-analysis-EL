@@ -506,6 +506,8 @@ folder. Use the functions `saveRDS()` and `readRDS()`.
     dir.create("output", showWarnings = FALSE) #warning excluded if output already exists
     saveRDS(msk_os_model, here("output", "msk_os_model.rds"))
 
+    msk_model_imported <- readRDS(here("output", "msk_os_model.rds"))
+
 <!----------------------------------------------------------------------------->
 
 # Tidy Repository

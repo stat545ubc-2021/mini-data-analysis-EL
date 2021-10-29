@@ -310,6 +310,8 @@ Write your model object from Exercise 2 to an R binary file (an RDS), and load i
 ```{r question 3b}
 dir.create("output", showWarnings = FALSE) #warning excluded if output already exists
 saveRDS(msk_os_model, here("output", "msk_os_model.rds"))
+
+msk_model_imported <- readRDS(here("output", "msk_os_model.rds"))
 ```
 <!----------------------------------------------------------------------------->
 
