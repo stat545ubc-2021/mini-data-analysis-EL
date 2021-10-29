@@ -47,9 +47,14 @@ your results in the context of a different research question.
 
 Begin by loading your data and the tidyverse package below:
 
+    # set wd to the parent folder as knitr automatically sets the working directory to the location of the Rmd file
+    knitr::opts_knit$set(root.dir = dirname(getwd()))
+
     library(datateachr) # <- might contain the data you picked!
     library(tidyverse)
+    library(broom)
     library(here)
+
     msk <- read_tsv("https://raw.githubusercontent.com/stat545ubc-2021/mini-data-analysis-EL/main/data/msk_impact_2017_clinical_data.tsv")
     #external datasets are first downloaded and loaded using readr
 
@@ -87,10 +92,12 @@ Place the code for your plot below.
       arrange(median_os) %>%
       head(10) %>%
       pull(`Cancer Type`)
+    # store the names of the 10 cancer types as a vector and used it to filter the dataset
 
     msk_top10 <- msk %>%
       filter(`Cancer Type` %in% most_deadly_types & !is.na(`Overall Survival (Months)`))
 
+    # write a function to re-create the plot later on in the project
     msk_osplot <- function(msk, type) {
       ggplot(msk, aes(x = {{type}}, y = msk$`Overall Survival (Months)`, color = {{type}})) +
         geom_violin(trim=FALSE) +
@@ -148,12 +155,11 @@ Now, choose two of the following tasks.
 **Task Number**: 1
 
 In the `msk` dataframe, the variable `Cancer Type` is of the character
-class. Hence, the order of the categories are by default ordered
-alphabetically when plotted. By reordering this variable as a factor,
-they can be plotted on the x-axis in ascending order of the median
-overall survival for each cancer type. This helps readers rapidly
-determine the most deadly type in the context being described by the
-plot.
+class. Hence, the categories are by default ordered alphabetically when
+plotted. By reordering this variable as a factor, the levels can be
+instead sorted in ascending order of the median overall survival for
+each cancer type. This helps readers rapidly determine the most deadly
+type in the context being described by the plot.
 
     # We created a new factor variable for cancer type that is reordered from lowest to highest median overall survival
 
@@ -165,6 +171,10 @@ plot.
     msk_osplot(msk_top10, type_ordered)
 
 ![](mda-milestone-3_files/figure-markdown_strict/exercise1b-1.png)
+Compared to our previous plot, it is now clear that pineal tumour in our
+dataset is the cancer type with the shortest median overall survival and
+we can also clearly determine the order of the remaning types in our
+plot.
 
 <!----------------------------------------------------------------------------->
 <!-------------------------- Start your work below ---------------------------->
@@ -172,11 +182,12 @@ plot.
 **Task Number**: 2 For the `Smoking History` variable, several rows have
 a missing value. As there is also a “Unknown” category for this
 category, NA’s in this context would essentially contain the same
-information, or the lack thereof, the patient’s smoking history. Thus
+information, or the lack thereof, on the patient’s smoking history. Thus
 these levels can be combined when setting this variable as a factor,
 stored in smoking\_history.
 
-    # define factor where NA's are assigned to "Unknown" and remove NA's in overall survival
+    # define factor where NA's are assigned to "Unknown" in smoking history
+    # remove NA's in overall survival
     msk_smoking <- msk %>%
       mutate(smoking_history = fct_explicit_na(`Smoking History`, na_level = "Unknown")) %>%
       filter(!is.na(`Overall Survival (Months)`))
@@ -251,14 +262,21 @@ specifics in STAT 545.
 
 First, we can assign each variable as related to either the patient or
 the sample, and store it in a new dataframe. Then, we clean the data in
-preparation for modelling.
+preparation for modelling. Categorical variables with too many levels
+such as `Metastatic Site` and `Primary Tumor Site` must be excluded.
+There are also variables in our dataset that are perfectly correlated,
+and hence for modelling purposes only one should be kept.
 
     # manually filter each variable and store in a new tibble
     msk_variables <- tibble(variable_msk = colnames(msk), variable_source = "Patient") %>%
       mutate(variable_source = case_when(
-        variable_msk %in% c("DNA Input", "Fraction Genome Altered", "Matched Status", "Mutation Count", "Sample Class", "Sample Collection Source", "Number of Samples Per Patient", "Sample coverage", "Sample Type", "Somatic Status", "Specimen Preservation Type", "Specimen Type", "Tumor Purity") ~ "Sample",
-        variable_msk %in% c("Metastatic Site", "Overall Survival Status", "Primary Tumor Site", "Sex", "Smoking History", "Patient's Vital Status") ~ "Patient",
-        variable_msk %in% c("Study ID", "Patient ID", "Sample ID", "Cancer Type", "Cancer Type Detailed", "Oncotree Code", "Overall Survival (Months)") ~ "Neither"))
+        variable_msk %in% c("DNA Input", "Fraction Genome Altered", "Mutation Count", "Sample Collection Source", "Number of Samples Per Patient", "Sample coverage", "Sample Type", "Somatic Status", "Specimen Preservation Type", "Specimen Type", "Tumor Purity") ~ "Sample",
+        variable_msk %in% c("Overall Survival (Months)", "Sex", "Smoking History", "Patient's Vital Status") ~ "Patient",
+        variable_msk %in% c("Study ID", "Patient ID", "Sample ID", "Cancer Type", "Cancer Type Detailed", "Matched Status", "Metastatic Site", "Overall Survival Status", "Primary Tumor Site", "Oncotree Code", "Sample Class") ~ "Neither"))
+
+    # we only want to consider variables that are patient or sample attributes, the rest are set as "neither"
+    # categorical variables with too many levels must also be excluded prior to modelling
+    # perfectly colinear variables are also excluded
 
     print(msk_variables)
 
@@ -272,26 +290,62 @@ preparation for modelling.
     ##  5 Cancer Type Detailed    Neither        
     ##  6 DNA Input               Sample         
     ##  7 Fraction Genome Altered Sample         
-    ##  8 Matched Status          Sample         
-    ##  9 Metastatic Site         Patient        
+    ##  8 Matched Status          Neither        
+    ##  9 Metastatic Site         Neither        
     ## 10 Mutation Count          Sample         
     ## # … with 16 more rows
 
+    # store variables that are relevant to our model so they can be selected
+
     msk_model_variables <- msk_variables %>%
-      filter(variable_source != "Neither", ) %>%
+      filter(variable_source != "Neither") %>%
       pull(variable_msk)
 
-    # remove multiple variables that describe similar attributes and those that are identical for all rows
+    # remove multiple variables that are not relevant for our model
 
     msk_clean <- msk %>%
-      filter(!is.na(`Overall Survival (Months)`)) %>%
       select(msk_model_variables) %>%
+      na.omit() %>%
       mutate(`Smoking History` = ifelse(is.na(`Smoking History`), Unknown, `Smoking History`))
 
     ## Note: Using an external vector in selections is ambiguous.
     ## ℹ Use `all_of(msk_model_variables)` instead of `msk_model_variables` to silence this message.
     ## ℹ See <https://tidyselect.r-lib.org/reference/faq-external-vector.html>.
     ## This message is displayed once per session.
+
+    #set all our character variables as factors
+    msk_clean[sapply(msk_clean, is.character)] <- lapply(msk_clean[sapply(msk_clean, is.character)], as.factor)
+
+    print(msk_clean)
+
+    ## # A tibble: 7,814 × 15
+    ##    `DNA Input` `Fraction Genome Altered` `Mutation Count` `Overall Survival (Mo…
+    ##          <dbl>                     <dbl>            <dbl>                  <dbl>
+    ##  1         250                    0.160                 5                   8.71
+    ##  2         250                    0.388                 6                  36.8 
+    ##  3         250                    0.102                 2                   8.81
+    ##  4         250                    0.148                 4                  33.0 
+    ##  5         250                    0.237                 3                  33.0 
+    ##  6         144                    0.404                 3                  18.6 
+    ##  7         250                    0.210                 1                  39.3 
+    ##  8         250                    0.452                27                   1.78
+    ##  9         250                    0.0689                6                  20.7 
+    ## 10         144                    0.532                 1                  38.2 
+    ## # … with 7,804 more rows, and 11 more variables:
+    ## #   Sample Collection Source <fct>, Number of Samples Per Patient <dbl>,
+    ## #   Sample coverage <dbl>, Sample Type <fct>, Sex <fct>, Smoking History <fct>,
+    ## #   Somatic Status <fct>, Specimen Preservation Type <fct>,
+    ## #   Specimen Type <fct>, Tumor Purity <dbl>, Patient's Vital Status <fct>
+
+    #fit our glm model using all the variables, as we have already handpicked them
+    msk_os_model <- glm(`Overall Survival (Months)` ~ ., family = "gaussian", data = msk_clean)
+
+    glance(msk_os_model)
+
+    ## # A tibble: 1 × 8
+    ##   null.deviance df.null  logLik    AIC    BIC deviance df.residual  nobs
+    ##           <dbl>   <int>   <dbl>  <dbl>  <dbl>    <dbl>       <int> <int>
+    ## 1       471044.    7813 -26335. 52713. 52866.  386986.        7793  7814
 
 <!----------------------------------------------------------------------------->
 
@@ -310,6 +364,93 @@ Y, or a single value like a regression coefficient or a p-value.
     which broom function is not compatible.
 
 <!-------------------------- Start your work below ---------------------------->
+
+From our generalized linear model of the dataset, we are able to extract
+the significant coefficients using an alpha of 0.05. These coefficients
+inherit their source, either Patient or Sample, from the factor from
+which they were derived from.
+
+    # pull out significant coefficients from our model 
+    msk_sig <- summary(msk_os_model)$coeff[-1,4] < 0.05
+    msk_sig <- names(msk_sig)[msk_sig == T]
+
+    # label coefficients as either patient or sample and count the total number from each source
+    msk_sig <- tibble(coefficient = msk_sig, source = factor(x = c(1, 1, 1, 0, 1, 0, 0, 0, 0), labels = c("Patient", "Sample"))) %>%
+      group_by(source) %>%
+      mutate(source_count = n())
+
+    print(msk_sig)
+
+    ## # A tibble: 9 × 3
+    ## # Groups:   source [2]
+    ##   coefficient                       source  source_count
+    ##   <chr>                             <fct>          <int>
+    ## 1 `DNA Input`                       Sample             4
+    ## 2 `Mutation Count`                  Sample             4
+    ## 3 `Sample Collection Source`Outside Sample             4
+    ## 4 `Number of Samples Per Patient`   Patient            5
+    ## 5 `Sample coverage`                 Sample             4
+    ## 6 SexMale                           Patient            5
+    ## 7 `Smoking History`Prev/Curr Smoker Patient            5
+    ## 8 `Smoking History`Unknown          Patient            5
+    ## 9 `Patient's Vital Status`DECEASED  Patient            5
+
+Out of the 9 statistically significant coefficients we extracted, they
+were derived from the following variables in our dataset: `DNA Input`,
+`Mutation Count`, `Sample Collection Source`,
+`Number of Samples Per Patient`, `Sample coverage`, `Sex`,
+`Smoking History`, and `Patient's Vital Status`. This is equivalent to 6
+sample variables and 2 patient variables, as two of the coefficients
+were derived from `Smoking History`. We can now use our model to predict
+the overall survival for all rows, including those that contained
+missing values in overall survival. For the rows that we used to fit our
+model, we can plot the predicted value against the actual overall
+survival to graphically evaluate our model peformance.
+
+    # now we will create a dataset of only row for which there is no overall survival value
+    msk_os_na <- msk %>%
+      select(msk_model_variables) %>%
+      drop_na(-`Overall Survival (Months)`) %>%
+      filter(is.na(`Overall Survival (Months)`)) %>%
+      select(-`Overall Survival (Months)`)
+
+    # use our model to make predictions for overall survival 
+    msk_os_na$predicted_os <- predict(msk_os_model, newdata = msk_os_na)
+
+    print(msk_os_na)
+
+    ## # A tibble: 2,655 × 15
+    ##    `DNA Input` `Fraction Genome Altered` `Mutation Count` `Sample Collection So…
+    ##          <dbl>                     <dbl>            <dbl> <chr>                 
+    ##  1         250                    0.278                16 Outside               
+    ##  2         198                    0.350                 7 In-House              
+    ##  3         250                    0.420                 4 In-House              
+    ##  4         250                    0.473                10 Outside               
+    ##  5         250                    0.159                12 In-House              
+    ##  6          50                    0.0185                3 In-House              
+    ##  7         250                    0.182                 2 In-House              
+    ##  8         250                    0.343                 2 In-House              
+    ##  9         250                    0.216                 0 In-House              
+    ## 10         250                    0.420                 6 In-House              
+    ## # … with 2,645 more rows, and 11 more variables:
+    ## #   Number of Samples Per Patient <dbl>, Sample coverage <dbl>,
+    ## #   Sample Type <chr>, Sex <chr>, Smoking History <chr>, Somatic Status <chr>,
+    ## #   Specimen Preservation Type <chr>, Specimen Type <chr>, Tumor Purity <dbl>,
+    ## #   Patient's Vital Status <chr>, predicted_os <dbl>
+
+    # make predictions for the data we used to fit the model
+    msk_clean$predicted_os <- predict(msk_os_model, newdata = msk_clean)
+
+    # plot the actual vs expected values, and the x = y line
+    msk_clean %>%
+      ggplot(aes(x=`Overall Survival (Months)`, y = predicted_os)) +
+      geom_point() + 
+      geom_abline(slope = 1, intercept = 0, color = "red")
+
+![](mda-milestone-3_files/figure-markdown_strict/exercise2c-1.png) It is
+clear that our model did not perform very well, as it is clear that the
+predicted and actual values deviate substantially from the x = y line,
+shown in red.
 <!----------------------------------------------------------------------------->
 
 # Exercise 3: Reading and writing data
@@ -360,6 +501,10 @@ folder. Use the functions `saveRDS()` and `readRDS()`.
     here.
 
 <!-------------------------- Start your work below ---------------------------->
+
+    dir.create("output", showWarnings = FALSE) #warning excluded if output already exists
+    saveRDS(msk_os_model, here("output", "msk_os_model.rds"))
+
 <!----------------------------------------------------------------------------->
 
 # Tidy Repository

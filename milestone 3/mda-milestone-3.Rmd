@@ -32,10 +32,14 @@ In this (3rd) milestone, you'll be sharpening some of the results you obtained f
 Begin by loading your data and the tidyverse package below: 
 
 ```{r initialize, message = FALSE}
+# set wd to the parent folder as knitr automatically sets the working directory to the location of the Rmd file
+knitr::opts_knit$set(root.dir = dirname(getwd()))
+
 library(datateachr) # <- might contain the data you picked!
 library(tidyverse)
 library(broom)
 library(here)
+
 msk <- read_tsv("https://raw.githubusercontent.com/stat545ubc-2021/mini-data-analysis-EL/main/data/msk_impact_2017_clinical_data.tsv")
 #external datasets are first downloaded and loaded using readr
 ```
@@ -66,10 +70,12 @@ most_deadly_types <- msk %>%
   arrange(median_os) %>%
   head(10) %>%
   pull(`Cancer Type`)
+# store the names of the 10 cancer types as a vector and used it to filter the dataset
 
 msk_top10 <- msk %>%
   filter(`Cancer Type` %in% most_deadly_types & !is.na(`Overall Survival (Months)`))
 
+# write a function to re-create the plot later on in the project
 msk_osplot <- function(msk, type) {
   ggplot(msk, aes(x = {{type}}, y = msk$`Overall Survival (Months)`, color = {{type}})) +
     geom_violin(trim=FALSE) +
@@ -104,7 +110,7 @@ Now, choose two of the following tasks.
 
 **Task Number**: 1
 
-In the `msk` dataframe, the variable `Cancer Type` is of the character class. Hence, the order of the categories are by default ordered alphabetically when plotted. By reordering this variable as a factor, they can be plotted on the x-axis in ascending order of the median overall survival for each cancer type. This helps readers rapidly determine the most deadly type in the context being described by the plot. 
+In the `msk` dataframe, the variable `Cancer Type` is of the character class. Hence, the categories are by default ordered alphabetically when plotted. By reordering this variable as a factor, the levels can be instead sorted in ascending order of the median overall survival for each cancer type. This helps readers rapidly determine the most deadly type in the context being described by the plot.
 
 ```{r exercise1b}
 # We created a new factor variable for cancer type that is reordered from lowest to highest median overall survival
@@ -117,6 +123,7 @@ msk_top10 <- msk_top10 %>%
 msk_osplot(msk_top10, type_ordered)
 
 ```
+Compared to our previous plot, it is now clear that pineal tumour in our dataset is the cancer type with the shortest median overall survival and we can also clearly determine the order of the remaning types in our plot.
 
 <!----------------------------------------------------------------------------->
 
@@ -124,9 +131,10 @@ msk_osplot(msk_top10, type_ordered)
 <!-------------------------- Start your work below ---------------------------->
 
 **Task Number**: 2
-For the `Smoking History` variable, several rows have a missing value. As there is also a "Unknown" category for this category, NA's in this context would essentially contain the same information, or the lack thereof, the patient's smoking history.  Thus these levels can be combined when setting this variable as a factor, stored in smoking_history. 
+For the `Smoking History` variable, several rows have a missing value. As there is also a "Unknown" category for this category, NA's in this context would essentially contain the same information, or the lack thereof, on the patient's smoking history. Thus these levels can be combined when setting this variable as a factor, stored in smoking_history. 
 ```{r exercise1c}
-# define factor where NA's are assigned to "Unknown" and remove NA's in overall survival
+# define factor where NA's are assigned to "Unknown" in smoking history
+# remove NA's in overall survival
 msk_smoking <- msk %>%
   mutate(smoking_history = fct_explicit_na(`Smoking History`, na_level = "Unknown")) %>%
   filter(!is.na(`Overall Survival (Months)`))
@@ -165,7 +173,7 @@ Fit a model or run a hypothesis test that provides insight on this variable with
     - You could use `lm()` to test for significance of regression.
 
 <!-------------------------- Start your work below ---------------------------->
-First, we can assign each variable as related to either the patient or the sample, and store it in a new dataframe. Then, we clean the data in preparation for modelling. Categorical variables with too many levels such as `Metastatic Site` and `Primary Tumor Site` must be excluded. There are also variables that are perfectly correlated, and hence for modelling purposes only one should be kept. We then extract the significant coefficients from our multivariate linear model, with an alpha of 0.05. 
+First, we can assign each variable as related to either the patient or the sample, and store it in a new dataframe. Then, we clean the data in preparation for modelling. Categorical variables with too many levels such as `Metastatic Site` and `Primary Tumor Site` must be excluded. There are also variables in our dataset that are perfectly correlated, and hence for modelling purposes only one should be kept. 
 
 ```{r exercise 2a}
 # manually filter each variable and store in a new tibble
@@ -181,7 +189,7 @@ msk_variables <- tibble(variable_msk = colnames(msk), variable_source = "Patient
 
 print(msk_variables)
 
-# store variables that are irrelevant to our model so they can be filtered
+# store variables that are relevant to our model so they can be selected
 
 msk_model_variables <- msk_variables %>%
   filter(variable_source != "Neither") %>%
@@ -194,18 +202,15 @@ msk_clean <- msk %>%
   na.omit() %>%
   mutate(`Smoking History` = ifelse(is.na(`Smoking History`), Unknown, `Smoking History`))
 
-msk_clean[sapply(msk_clean, is.character)] <- lapply(msk_clean[sapply(msk_clean, is.character)], 
-                                       as.factor)
+#set all our character variables as factors
+msk_clean[sapply(msk_clean, is.character)] <- lapply(msk_clean[sapply(msk_clean, is.character)], as.factor)
+
 print(msk_clean)
 
+#fit our glm model using all the variables, as we have already handpicked them
 msk_os_model <- glm(`Overall Survival (Months)` ~ ., family = "gaussian", data = msk_clean)
 
 glance(msk_os_model)
-
-msk_sig <- summary(msk_os_model)$coeff[-1,4] < 0.05
-msk_sig <- names(msk_sig)[msk_sig == T]
-
-print(msk_sig)
 ```
 <!----------------------------------------------------------------------------->
 
@@ -218,8 +223,46 @@ Produce something relevant from your fitted model: either predictions on Y, or a
 - Obtain your results using the `broom` package if possible. If your model is not compatible with the broom function you're needing, then you can obtain your results by some other means, but first indicate which broom function is not compatible. 
   
 <!-------------------------- Start your work below ---------------------------->
+From our generalized linear model of the dataset, we are able to extract the significant coefficients using an alpha of 0.05. These coefficients inherit their source, either Patient or Sample, from the factor from which they were derived from. 
+```{r exercise2b}
+# pull out significant coefficients from our model 
+msk_sig <- summary(msk_os_model)$coeff[-1,4] < 0.05
+msk_sig <- names(msk_sig)[msk_sig == T]
+
+# label coefficients as either patient or sample and count the total number from each source
+msk_sig <- tibble(coefficient = msk_sig, source = factor(x = c(1, 1, 1, 0, 1, 0, 0, 0, 0), labels = c("Patient", "Sample"))) %>%
+  group_by(source) %>%
+  mutate(source_count = n())
+
+print(msk_sig)
+```
+Out of the 9 statistically significant coefficients we extracted, they were derived from the following variables in our dataset: `DNA Input`, `Mutation Count`, `Sample Collection Source`, `Number of Samples Per Patient`, `Sample coverage`, `Sex`, `Smoking History`, and `Patient's Vital Status`. This is equivalent to 6 sample variables and 2 patient variables, as two of the coefficients were derived from `Smoking History`. We can now use our model to predict the overall survival for all rows, including those that contained missing values in overall survival. For the rows that we used to fit our model, we can plot the predicted value against the actual overall survival to graphically evaluate our model peformance. 
+
+```{r exercise2c}
+# now we will create a dataset of only row for which there is no overall survival value
+msk_os_na <- msk %>%
+  select(msk_model_variables) %>%
+  drop_na(-`Overall Survival (Months)`) %>%
+  filter(is.na(`Overall Survival (Months)`)) %>%
+  select(-`Overall Survival (Months)`)
+
+# use our model to make predictions for overall survival 
+msk_os_na$predicted_os <- predict(msk_os_model, newdata = msk_os_na)
+
+print(msk_os_na)
+
+# make predictions for the data we used to fit the model
+msk_clean$predicted_os <- predict(msk_os_model, newdata = msk_clean)
+
+# plot the actual vs expected values, and the x = y line
+msk_clean %>%
+  ggplot(aes(x=`Overall Survival (Months)`, y = predicted_os)) +
+  geom_point() + 
+  geom_abline(slope = 1, intercept = 0, color = "red")
 
 
+```
+It is clear that our model did not perform very well, as it is clear that the predicted and actual values deviate substantially from the x = y line, shown in red. 
 <!----------------------------------------------------------------------------->
 
 
@@ -263,7 +306,10 @@ Write your model object from Exercise 2 to an R binary file (an RDS), and load i
 
 <!-------------------------- Start your work below ---------------------------->
 
-
+```{r question 3b}
+dir.create("output", showWarnings = FALSE) #warning excluded if output already exists
+saveRDS(msk_os_model, here("output", "msk_os_model.rds"))
+```
 <!----------------------------------------------------------------------------->
 
 # Tidy Repository
