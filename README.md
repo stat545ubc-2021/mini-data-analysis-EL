@@ -24,4 +24,5 @@ Milestone 3 - Saturday, October 28, 2021 at 10pm PT
 | milestone 1 | Directory containing the first milestone of the project. |
 | milestone 2 | Directory containing the second milestone of the project. |
 | milestone 3 | Directory containing the final milestone of the project. |
+| output | Directory containing output files from the milestones. |
 | .gitignore | Indicates which files are excluded from tracking by git. |
